@@ -13,7 +13,7 @@ const App = () => {
   let [text, setText] = useState("");
   let [messages, setMessage] = useState([]);
   let [files, setFiles] = useState([]);
-  let ENDPOINT = "https://webrtc-react.herokuapp.com/";
+  let ENDPOINT = "https://fd99rehman.com/";
 
   const worker = new Worker("../worker.js");
   const send_worker = new Worker("../send_worker.js");
@@ -135,7 +135,7 @@ const App = () => {
     // initiates the creation of SDP
     pc.current.createOffer({ offerToReceiveVideo: 1 }).then((sdp) => {
       // console.log(JSON.stringify(sdp))
-      console.log("Offer", sdp);
+      console.log( JSON.stringify(sdp));
       localStorage.setItem("sdp", JSON.stringify(sdp));
 
       // set offer sdp as local description
@@ -193,7 +193,7 @@ const App = () => {
   let createAnswer = () => {
     console.log("Answer");
     pc.current.createAnswer({ offerToReceiveVideo: 1 }).then((sdp) => {
-      // console.log(JSON.stringify(sdp))
+      console.log(JSON.stringify(sdp));
       // set answer sdp as local description
       pc.current.setLocalDescription(sdp);
 
