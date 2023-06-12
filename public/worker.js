@@ -1,4 +1,3 @@
-let array = [];
 let fileChunks = [];
 let fileReceived = [];
 
