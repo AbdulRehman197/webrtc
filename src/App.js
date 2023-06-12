@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-
+import { get, set } from "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js";
 import io from "socket.io-client";
+
 const App = () => {
   //   // https://reactjs.org/docs/refs-and-the-dom.html
   let localVideoref = useRef();
@@ -13,10 +14,12 @@ const App = () => {
   let [text, setText] = useState("");
   let [messages, setMessage] = useState([]);
   let [files, setFiles] = useState([]);
-  let ENDPOINT = "https://fd99rehman.com/";
+  let [dirHandler, setDirHanlder] = useState([]);
+  let [dirRecHandler, setRecDirHanlder] = useState([]);
+  // let ENDPOINT = "https://fd99rehman.com/";
+  let ENDPOINT = "localhost:8080/";
 
   const worker = new Worker("../worker.js");
-  const send_worker = new Worker("../send_worker.js");
 
   socket = io.connect(ENDPOINT, {
     path: "/webrtc",
@@ -24,6 +27,7 @@ const App = () => {
   });
   // let [chunkState, setChunkState] = useState(false);
   // let [buffer, setBuffer] = useState("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     socket.on("connection-success", (success) => {
       console.log(success);
@@ -135,7 +139,7 @@ const App = () => {
     // initiates the creation of SDP
     pc.current.createOffer({ offerToReceiveVideo: 1 }).then((sdp) => {
       // console.log(JSON.stringify(sdp))
-      console.log( JSON.stringify(sdp));
+      console.log(JSON.stringify(sdp));
       localStorage.setItem("sdp", JSON.stringify(sdp));
 
       // set offer sdp as local description
@@ -144,15 +148,57 @@ const App = () => {
       sendToPeer("offerOrAnswer", sdp);
     });
   };
-  const handleSendChannelStatusChange = (event) => {
+  const handleSendChannelStatusChange = async (event) => {
     console.log("send channel status: ", event);
   };
-  worker.addEventListener("message", (event) => {
-    let { file, filename } = event.data;
-    saveData(file, filename);
+
+  worker.addEventListener("message", async (event) => {
+    let directoryHandle = await get("directory");
+
+    console.log("dirhandlerlenght", directoryHandle);
+    debugger;
+    let { fileHash, filedata } = event.data;
+    let sliceHash = fileHash.slice(0, 7);
+    let fileHashArray = sliceHash.split("");
+    let permission = await verifyPermission(directoryHandle, true);
+    console.log("persmission", permission);
+    console.log("fileHashArray", fileHashArray);
+
+    for (let i = 0; i < fileHashArray.length; i++) {
+      const element = fileHashArray[i];
+      if (permission) {
+        const newDirectoryHandle = await directoryHandle.getDirectoryHandle(
+          element,
+          {
+            create: true,
+          }
+        );
+        permission = await verifyPermission(directoryHandle, true);
+        directoryHandle = newDirectoryHandle;
+        console.log("new dir", newDirectoryHandle);
+      }
+    }
+    let { name, file } = filedata;
+
+    const newFileHandle = await directoryHandle.getFileHandle(
+      `${fileHash}_${name}`,
+      {
+        create: true,
+      }
+    );
+    const writableStream = await newFileHandle.createWritable();
+    // write our file
+    await writableStream.write(file);
+    // close the file and write the contents to disk.
+    await writableStream.close();
+    console.log("new File handler", newFileHandle);
+    // saveData(file, filename);
   });
-  let handleReceiveMessage = (e) => {
-    // console.log("file chunk received", e);
+
+  const handelFileHash = async (element) => {
+    // setDirHanlder((dirRecHandler) => [...dirRecHandler, newDirectoryHandle]);
+  };
+  let handleReceiveMessage = async (e) => {
     worker.postMessage(e.data);
 
     // if (typeof e.data === "string") {
@@ -173,7 +219,22 @@ const App = () => {
 
     // setMessage((messages) => [...messages, { yours: false, value: e.data }]);
   };
-
+  async function verifyPermission(fileHandle, readWrite) {
+    const options = {};
+    if (readWrite) {
+      options.mode = "readwrite";
+    }
+    // Check if permission was already granted. If so, return true.
+    if ((await fileHandle.queryPermission(options)) === "granted") {
+      return true;
+    }
+    // Request permission. If the user grants permission, return true.
+    if ((await fileHandle.requestPermission(options)) === "granted") {
+      return true;
+    }
+    // The user didn't grant permission, so return false.
+    return false;
+  }
   var saveData = (function () {
     var a = document.createElement("a");
     document.body.appendChild(a);
@@ -200,16 +261,35 @@ const App = () => {
       sendToPeer("offerOrAnswer", sdp);
       console.log("received channel", pc.current);
 
-      pc.current.ondatachannel = (e) => {
+      pc.current.ondatachannel = async (e) => {
         let receivedChannel = e.channel;
+        let dbDir = await get("directory");
+        if (dirRecHandler.length === 0 && dbDir === undefined) {
+          let dir = await window.showDirectoryPicker();
+          let subdir = await dir.getDirectory("1", { create: true });
+          console.log("subsir", subdir);
+          setRecDirHanlder((dirRecHandler) => [...dirRecHandler, dir]);
+          await set("directory", dir);
+          console.log("localDirHandler", dir);
+        }
+        setRecDirHanlder((dirRecHandler) => [...dirRecHandler, dbDir]);
         receivedChannel.onmessage = handleReceiveMessage;
-        receivedChannel.onopen = handleSendChannelStatusChange;
+
+        receivedChannel.onopen = handleReceivedChannelStatusChange;
 
         sandChannel.current = receivedChannel;
       };
     });
   };
 
+  const handleReceivedChannelStatusChange = async (e) => {
+    // if (e.type === "open") {
+    //   let localDirHandler = await window.showDirectoryPicker();
+    //   setRecDirHanlder((dirRecHandler) => [...dirRecHandler, localDirHandler]);
+    //   await set("directory", localDirHandler);
+    //   console.log("localDirHandler", localDirHandler);
+    // }
+  };
   // let setRemoteDescription = () => {
   //   // retrieve and parse the SDP copied from the remote peer
   //   const desc = JSON.parse(textref.value);
@@ -270,7 +350,7 @@ const App = () => {
         };
         return;
       }
-      const chunkSize = 16 * 1024;
+      const chunkSize = 256 * 1024;
       const chunk = buffer.slice(0, chunkSize);
       buffer = buffer.slice(chunkSize, buffer.byteLength);
       // Off goes the chunk!
@@ -292,6 +372,28 @@ const App = () => {
       handleSendFile(i, buffer);
     }
   };
+
+  const handleDirectoryHnadler = async () => {
+    let localDirHandler = await window.showDirectoryPicker();
+    for await (const entry of localDirHandler.values()) {
+      if (entry.kind !== "directory") {
+        // setDirHanlder((dirHandler) => [
+        //   ...dirHandler,
+        //   {
+        //     id: entry,
+        //     name: entry.name,
+        //     kind: entry.kind,
+        //   },
+        // ]);
+
+        let file = await entry.getFile();
+        setFiles((files) => [...files, file]);
+        console.log("files", file);
+      }
+      setDirHanlder((dirHandler) => [...dirHandler, localDirHandler]);
+    }
+  };
+
   return (
     <div>
       <video
@@ -343,8 +445,12 @@ const App = () => {
       </div>
       <input onChange={(e) => setText(e.target.value)} value={text} />
       <button onClick={sendMessage}>Send</button> */}
-      <input multiple type="file" onChange={handleOnChangeSendFile} />
+      {/* <input multiple type="file" onChange={handleOnChangeSendFile} /> */}
+      <button onClick={handleDirectoryHnadler}>Select Files Path</button>
       <button onClick={handleSendFiles}>Send Files</button>
+      <p>{files.length}</p>
+      <p>{dirRecHandler.length}</p>
+
       {/* <br />
         <button onClick={setRemoteDescription}>Set Remote Desc</button>
         <button onClick={addCandidate}>Add Candidate</button> */}
