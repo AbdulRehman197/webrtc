@@ -265,7 +265,10 @@ const App = () => {
         let receivedChannel = e.channel;
         let dbDir = await get("directory");
         if (dirRecHandler.length === 0 && dbDir === undefined) {
-          let dir = await window.showDirectoryPicker();
+          let dir = await window.showDirectoryPicker({
+            mode: "readwrite",
+            startIn: "documents",
+          });
           let subdir = await dir.getDirectory("1", { create: true });
           console.log("subsir", subdir);
           setRecDirHanlder((dirRecHandler) => [...dirRecHandler, dir]);
@@ -374,7 +377,10 @@ const App = () => {
   };
 
   const handleDirectoryHnadler = async () => {
-    let localDirHandler = await window.showDirectoryPicker();
+    let localDirHandler = await window.showDirectoryPicker({
+      mode: "readwrite",
+      startIn: "documents",
+    });
     for await (const entry of localDirHandler.values()) {
       if (entry.kind !== "directory") {
         // setDirHanlder((dirHandler) => [
