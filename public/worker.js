@@ -5,21 +5,21 @@ let fileChunks = [];
 // eslint-disable-next-line no-restricted-globals
 self.addEventListener("message", async (e) => {
   if (typeof e.data === "string") {
-    console.log("filename", fileChunks);
+    // console.log("filename", fileChunks);
     // Once, all the chunks are received, combine them to form a Blob
     let file = new Blob(fileChunks);
     let UintFile = new Uint8Array(await file.arrayBuffer());
-    console.log("file unit", UintFile);
+    // console.log("file unit", UintFile);
 
     let hash = await sha256(UintFile);
-    console.log("hashworker", hash);
+    // console.log("hashworker", hash);
     let filename = e.data;
     // eslint-disable-next-line no-restricted-globals
     self.postMessage({
       fileHash: hash,
     });
 
-    console.log("message from worker");
+    // console.log("message from worker");
     fileChunks = [];
     // eslint-disable-next-line no-undef
     let dbStore = createStore("Directory", "DirHanlders");
@@ -36,7 +36,7 @@ self.addEventListener("message", async (e) => {
       }
     );
     directoryHandle = newDirectoryHandle;
-    console.log("new dir", newDirectoryHandle);
+    // console.log("new dir", newDirectoryHandle);
 
     // eslint-disable-next-line no-undef
     await set(filename, { path: sliceHash }, fillDbStore);

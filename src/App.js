@@ -9,8 +9,7 @@ import io from "socket.io-client";
 
 const App = () => {
   //   // https://reactjs.org/docs/refs-and-the-dom.html
-  let localVideoref = useRef();
-  let remoteVideoref = useRef();
+
   let sandChannel = useRef();
   let socket = useRef(null);
   // let candidates = useRef([]);
@@ -35,9 +34,6 @@ const App = () => {
     rejectUnauthorized: false,
   });
 
-  // let [chunkState, setChunkState] = useState(false);
-  // let [buffer, setBuffer] = useState("");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // let fillDbStore = createStore("FileDirectoryHandlers", "FileDirHandlers");
     // keys(fillDbStore).then((filenames) => {
@@ -49,7 +45,7 @@ const App = () => {
     });
 
     socket.on("offerOrAnswer", (sdp) => {
-      console.log("received sdp", sdp);
+      // console.log("received sdp", sdp);
       textref.value = JSON.stringify(sdp);
 
       // set sdp as remote description
@@ -57,13 +53,8 @@ const App = () => {
     });
 
     socket.on("candidate", (candidate) => {
-      // console.log('From Peer... ', JSON.stringify(candidate))
-      // candidates = [...candidates, candidate]
       pc.current.addIceCandidate(new RTCIceCandidate(candidate));
     });
-
-    // const pc_config = null
-    // const pc_config = nullset
 
     const pc_config = {
       iceServers: [
@@ -78,56 +69,20 @@ const App = () => {
     // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
     // create an instance of RTCPeerConnection
     pc.current = new RTCPeerConnection(pc_config, [{ googIPv6: true }]);
-    console.log(" pc.current", pc.current);
+    // console.log(" pc.current", pc.current);
     // triggered when a new candidate is returned
     pc.current.onicecandidate = (e) => {
-      // send the candidates to the remote peer
       // see addCandidate below to be triggered on the remote peer
       if (e.candidate) {
-        // console.log(JSON.stringify(e.candidate))
-        // console.log("candidate", e.candidate);
         sendToPeer("candidate", e.candidate);
       }
     };
     // triggered when there is a change in connection state
-    pc.current.oniceconnectionstatechange = (e) => {
-      console.log("state", e);
-      setTimeout(() => {
-        setConnStatus(e.currentTarget.connectionState);
-      }, 1000);
 
-      // console.log("channel", sandChannel.current);
+    pc.current.onconnectionstatechange = (e) => {
+      setConnStatus(pc.current.connectionState);
     };
-    pc.current.onnegotiationneeded = (e) => console.log("negotiaiton", e);
-    // triggered when a stream is added to pc, see below - pc.addStream(stream)
-    // pc.current.onaddstream = (e) => {
-    //   remoteVideoref.current.srcObject = e.stream;
-    // };
   }, []);
-
-  // called when getUserMedia() successfully returns - see below
-  // getUserMedia() returns a MediaStream object (https://developer.mozilla.org/en-US/docs/Web/API/MediaStream)
-  // const success = (stream) => {
-  //   window.localStream = stream;
-  //   localVideoref.current.srcObject = stream;
-  //   pc.current.addStream(stream);
-  // };
-
-  // called when getUserMedia() fails - see below
-  // const failure = (e) => {
-  //   console.log("getUserMedia Error: ", e);
-  // };
-
-  // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
-  // see the above link for more constraint options
-  // const constraints = {
-  //   audio: false,
-  //   video: true,
-  // };
-
-  // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
-  // navigator.mediaDevices.getUserMedia(constraints).then(success).catch(failure);
-  // }, []);
 
   let sendToPeer = (messageType, payload) => {
     socket.emit(messageType, {
@@ -139,7 +94,7 @@ const App = () => {
   /* ACTION METHODS FROM THE BUTTONS ON SCREEN */
 
   let createOffer = () => {
-    console.log("Offer");
+    // console.log("Offer");
     sandChannel.current = pc.current.createDataChannel("sendChannel", {
       reliable: false,
     });
@@ -150,12 +105,10 @@ const App = () => {
     // initiates the creation of SDP
     pc.current.createOffer({}).then((sdp) => {
       // console.log(JSON.stringify(sdp))
-      console.log(JSON.stringify(sdp));
+      // console.log(JSON.stringify(sdp));
       localStorage.setItem("sdp", JSON.stringify(sdp));
-
       // set offer sdp as local description
       pc.current.setLocalDescription(sdp);
-
       sendToPeer("offerOrAnswer", sdp);
     });
   };
@@ -206,12 +159,12 @@ const App = () => {
   let createAnswer = () => {
     console.log("Answer");
     pc.current.createAnswer({}).then((sdp) => {
-      console.log(JSON.stringify(sdp));
+      // console.log(JSON.stringify(sdp));
       // set answer sdp as local description
       pc.current.setLocalDescription(sdp);
 
       sendToPeer("offerOrAnswer", sdp);
-      console.log("received channel", pc.current);
+      // console.log("received channel", pc.current);
 
       pc.current.ondatachannel = async (e) => {
         sandChannel.current = e.channel;
@@ -226,7 +179,7 @@ const App = () => {
 
           setRecDirHanlder((dirRecHandler) => [...dirRecHandler, dir]);
           await set("directory", dir, dbStore);
-          console.log("localDirHandler", dir);
+          // console.log("localDirHandler", dir);
         }
         setRecDirHanlder((dirRecHandler) => [...dirRecHandler, dbDir]);
         sandChannel.current.onmessage = handleReceiveMessage;
@@ -238,7 +191,6 @@ const App = () => {
   };
 
   const handleChannelStatusChange = async (e) => {
-    console.log("rec chnel status", sandChannel.current.readyState);
     setChannelStatus(sandChannel.current.readyState);
   };
 
@@ -314,7 +266,7 @@ const App = () => {
       if (entry.kind !== "directory") {
         let file = await entry.getFile();
         setFiles((files) => [...files, file]);
-        console.log("files", file);
+        // console.log("files", file);
       }
       setDirHanlder((dirHandler) => [...dirHandler, localDirHandler]);
     }
@@ -333,7 +285,7 @@ const App = () => {
       <button onClick={createAnswer}>Answer</button>
       <br />
       <textarea
-        style={{ width: 450, height: 40 }}
+        style={{ width: 450, height: 40, display: "none" }}
         ref={(ref) => {
           textref = ref;
         }}
