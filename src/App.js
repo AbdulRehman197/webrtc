@@ -1,5 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { get, set } from "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js";
+import {
+  get,
+  set,
+  keys,
+  createStore,
+} from "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js";
 import io from "socket.io-client";
 
 const App = () => {
@@ -14,9 +19,12 @@ const App = () => {
   let [text, setText] = useState("");
   let [messages, setMessage] = useState([]);
   let [files, setFiles] = useState([]);
+  let [filesName, setFilesName] = useState([]);
   let [dirHandler, setDirHanlder] = useState([]);
   let [dirRecHandler, setRecDirHanlder] = useState([]);
   let [isChrome, setIsChrome] = useState(true);
+  let [isChecked, setIsChecked] = useState(false);
+  let [store, setStore] = useState("");
   // let ENDPOINT = "https://fd99rehman.com/";
   let ENDPOINT = "localhost:8080/";
 
@@ -26,102 +34,103 @@ const App = () => {
     path: "/webrtc",
     rejectUnauthorized: false,
   });
-  // useEffect(() => {
-  //
-  // },[]);
+
   // let [chunkState, setChunkState] = useState(false);
   // let [buffer, setBuffer] = useState("");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    socket.on("connection-success", (success) => {
-      console.log(success);
+    let fillDbStore = createStore("FileDirectoryHandlers", "FileDirHandlers");
+    keys(fillDbStore).then((filenames) => {
+      setFilesName(filenames);
+      console.log("filenames", filenames);
     });
-
-    socket.on("offerOrAnswer", (sdp) => {
-      console.log("received sdp", sdp);
-      textref.value = JSON.stringify(sdp);
-
-      // set sdp as remote description
-      pc.current.setRemoteDescription(new RTCSessionDescription(sdp));
-    });
-
-    socket.on("candidate", (candidate) => {
-      // console.log('From Peer... ', JSON.stringify(candidate))
-      // candidates = [...candidates, candidate]
-      pc.current.addIceCandidate(new RTCIceCandidate(candidate));
-    });
-
-    // const pc_config = null
-
-    const pc_config = {
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" },
-        { urls: "stun:stun3.l.google.com:19302" },
-        { urls: "stun:stun4.l.google.com:19302" },
-      ],
-    };
-
-    // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
-    // create an instance of RTCPeerConnection
-    pc.current = new RTCPeerConnection(pc_config, [{ googIPv6: true }]);
-
-    // triggered when a new candidate is returned
-    pc.current.onicecandidate = (e) => {
-      // send the candidates to the remote peer
-      // see addCandidate below to be triggered on the remote peer
-      if (e.candidate) {
-        // console.log(JSON.stringify(e.candidate))
-        // console.log("candidate", e.candidate);
-        sendToPeer("candidate", e.candidate);
-      }
-    };
-
-    // triggered when there is a change in connection state
-    pc.current.oniceconnectionstatechange = (e) => {
-      console.log("state", e);
-      // console.log("channel", sandChannel.current);
-    };
-    pc.current.onnegotiationneeded = (e) => console.log("negotiaiton", e);
-    // triggered when a stream is added to pc, see below - pc.addStream(stream)
-    pc.current.onaddstream = (e) => {
-      remoteVideoref.current.srcObject = e.stream;
-    };
-
-    // called when getUserMedia() successfully returns - see below
-    // getUserMedia() returns a MediaStream object (https://developer.mozilla.org/en-US/docs/Web/API/MediaStream)
-    const success = (stream) => {
-      window.localStream = stream;
-      localVideoref.current.srcObject = stream;
-      pc.current.addStream(stream);
-    };
-
-    // called when getUserMedia() fails - see below
-    const failure = (e) => {
-      console.log("getUserMedia Error: ", e);
-    };
-
-    // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
-    // see the above link for more constraint options
-    const constraints = {
-      audio: false,
-      video: true,
-      // video: {
-      //   width: 1280,
-      //   height: 720
-      // },
-      // video: {
-      //   width: { min: 1280 },
-      // }
-    };
-
-    // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
-    navigator.mediaDevices
-      .getUserMedia(constraints)
-      .then(success)
-      .catch(failure);
   }, []);
+  socket.on("connection-success", (success) => {
+    console.log(success);
+  });
+
+  socket.on("offerOrAnswer", (sdp) => {
+    console.log("received sdp", sdp);
+    textref.value = JSON.stringify(sdp);
+
+    // set sdp as remote description
+    pc.current.setRemoteDescription(new RTCSessionDescription(sdp));
+  });
+
+  socket.on("candidate", (candidate) => {
+    // console.log('From Peer... ', JSON.stringify(candidate))
+    // candidates = [...candidates, candidate]
+    pc.current.addIceCandidate(new RTCIceCandidate(candidate));
+  });
+
+  // const pc_config = null
+
+  const pc_config = {
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
+      { urls: "stun:stun3.l.google.com:19302" },
+      { urls: "stun:stun4.l.google.com:19302" },
+    ],
+  };
+
+  // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
+  // create an instance of RTCPeerConnection
+  pc.current = new RTCPeerConnection(pc_config, [{ googIPv6: true }]);
+
+  // triggered when a new candidate is returned
+  pc.current.onicecandidate = (e) => {
+    // send the candidates to the remote peer
+    // see addCandidate below to be triggered on the remote peer
+    if (e.candidate) {
+      // console.log(JSON.stringify(e.candidate))
+      // console.log("candidate", e.candidate);
+      sendToPeer("candidate", e.candidate);
+    }
+  };
+
+  // triggered when there is a change in connection state
+  pc.current.oniceconnectionstatechange = (e) => {
+    console.log("state", e);
+    // console.log("channel", sandChannel.current);
+  };
+  pc.current.onnegotiationneeded = (e) => console.log("negotiaiton", e);
+  // triggered when a stream is added to pc, see below - pc.addStream(stream)
+  pc.current.onaddstream = (e) => {
+    remoteVideoref.current.srcObject = e.stream;
+  };
+
+  // called when getUserMedia() successfully returns - see below
+  // getUserMedia() returns a MediaStream object (https://developer.mozilla.org/en-US/docs/Web/API/MediaStream)
+  const success = (stream) => {
+    window.localStream = stream;
+    localVideoref.current.srcObject = stream;
+    pc.current.addStream(stream);
+  };
+
+  // called when getUserMedia() fails - see below
+  const failure = (e) => {
+    console.log("getUserMedia Error: ", e);
+  };
+
+  // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
+  // see the above link for more constraint options
+  const constraints = {
+    audio: false,
+    video: true,
+    // video: {
+    //   width: 1280,
+    //   height: 720
+    // },
+    // video: {
+    //   width: { min: 1280 },
+    // }
+  };
+
+  // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
+  navigator.mediaDevices.getUserMedia(constraints).then(success).catch(failure);
+  // }, []);
 
   let sendToPeer = (messageType, payload) => {
     socket.emit(messageType, {
@@ -157,57 +166,36 @@ const App = () => {
     console.log("send channel status: ", event);
   };
   const createPath = async (path) => {
-    await window.CefSharp.BindObjectAsync("FileSystemClass");
-    await window.FileSystemClass.createSha256(path);
+    // eslint-disable-next-line no-undef
+    await CefSharp.BindObjectAsync("FileSystemClass");
+    // eslint-disable-next-line no-undef
+    await FileSystemClass.createSha256(path);
   };
-  worker.addEventListener("message", async (event) => {
-    let directoryHandle = await get("directory");
 
-    console.log("dirhandlerlenght", directoryHandle);
-    debugger;
-    let { fileHash, filedata } = event.data;
-    let sliceHash = fileHash.slice(0, 7);
+  worker.addEventListener("message", async (event) => {
     if (navigator.userAgentData.brands.length === 1) {
+      let { fileHash } = event.data;
+      let sliceHash = fileHash.slice(0, 7);
       await createPath(sliceHash);
     }
-    let fileHashArray = sliceHash.split("");
-
-    console.log("fileHashArray", fileHashArray);
-
-    for (let i = 0; i < fileHashArray.length; i++) {
-      const element = fileHashArray[i];
-
-      const newDirectoryHandle = await directoryHandle.getDirectoryHandle(
-        element,
-        {
-          create: navigator.userAgentData.brands.length === 1 ? false : true,
-        }
-      );
-
-      directoryHandle = newDirectoryHandle;
-      console.log("new dir", newDirectoryHandle);
-    }
-    let { name, file } = filedata;
-
-    const newFileHandle = await directoryHandle.getFileHandle(
-      `${fileHash}_${name}`,
-      {
-        create: true,
-      }
-    );
-    const writableStream = await newFileHandle.createWritable();
-    // write our file
-    await writableStream.write(file);
-    // close the file and write the contents to disk.
-    await writableStream.close();
-    console.log("new File handler", newFileHandle);
-    // saveData(file, filename);
   });
 
   const handelFileHash = async (element) => {
     // setDirHanlder((dirRecHandler) => [...dirRecHandler, newDirectoryHandle]);
   };
   let handleReceiveMessage = async (e) => {
+    if (typeof e.data === "string") {
+      setFilesName((files) => [...files, e.data]);
+    }
+    // let dbStore = createStore("Directory", "DirHanlders");
+    // let directoryHandle = await get("directory", dbStore);
+    // if (directoryHandle === undefined) {
+    //   let dir = await window.showDirectoryPicker({
+    //     mode: "readwrite",
+    //     startIn: "documents",
+    //   });
+    //   await set("directory", dir, dbStore);
+    // }
     worker.postMessage(e.data);
 
     // if (typeof e.data === "string") {
@@ -272,16 +260,17 @@ const App = () => {
 
       pc.current.ondatachannel = async (e) => {
         let receivedChannel = e.channel;
-        let dbDir = await get("directory");
+        let dbStore = createStore("Directory", "DirHanlders");
+        setStore(dbStore);
+        let dbDir = await get("directory", dbStore);
         if (dirRecHandler.length === 0 && dbDir === undefined) {
           let dir = await window.showDirectoryPicker({
             mode: "readwrite",
             startIn: "documents",
           });
-          let subdir = await dir.getDirectory("1", { create: true });
-          console.log("subsir", subdir);
+
           setRecDirHanlder((dirRecHandler) => [...dirRecHandler, dir]);
-          await set("directory", dir);
+          await set("directory", dir, dbStore);
           console.log("localDirHandler", dir);
         }
         setRecDirHanlder((dirRecHandler) => [...dirRecHandler, dbDir]);
@@ -338,6 +327,7 @@ const App = () => {
     let i = 0;
     let buffer = await files[i].arrayBuffer();
     handleSendFile(i, buffer);
+    buffer = "";
   };
   let newbuffer = "";
   let n = 0;
@@ -409,7 +399,9 @@ const App = () => {
     }
   };
   const handleGetPermission = async () => {
-    let dir = await get("directory");
+    let dbStore = createStore("Directory", "DirHanlders");
+
+    let dir = await get("directory", dbStore);
     await verifyPermission(dir, "readwrite");
   };
 
@@ -436,11 +428,9 @@ const App = () => {
         autoPlay
       ></video>
       <br />
-
       <button onClick={createOffer}>Offer</button>
       <button onClick={OfferAgain}> Offer Again</button>
       <button onClick={createAnswer}>Answer</button>
-
       <br />
       <textarea
         style={{ width: 450, height: 40 }}
@@ -468,8 +458,22 @@ const App = () => {
       <button onClick={handleDirectoryHnadler}>Select Files Path</button>
       <button onClick={handleSendFiles}>Send Files</button>
       <button onClick={handleGetPermission}>Get Permission</button>
-      <p>{files.length}</p>
-      <p>{dirRecHandler.length}</p>
+      <div>
+        {filesName.length > 0
+          ? filesName.map((filename, i) => (
+              <>
+                {" "}
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  id="filename"
+                  name="filename"
+                />
+                <label for="filename"> {filename}</label>
+              </>
+            ))
+          : null}
+      </div>
 
       {/* <br />
         <button onClick={setRemoteDescription}>Set Remote Desc</button>
