@@ -23,6 +23,8 @@ const App = () => {
   let [isChrome, setIsChrome] = useState(true);
   let [isChecked, setIsChecked] = useState(false);
   let [store, setStore] = useState("");
+  let [connStatus, setConnStatus] = useState("Nothing");
+  let [channelStatus, setChannelStatus] = useState("Nothing");
   // let ENDPOINT = "https://fd99rehman.com/";
   let ENDPOINT = "localhost:8080/";
 
@@ -37,90 +39,94 @@ const App = () => {
   // let [buffer, setBuffer] = useState("");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    let fillDbStore = createStore("FileDirectoryHandlers", "FileDirHandlers");
-    keys(fillDbStore).then((filenames) => {
-      setFilesName(filenames);
-      console.log("filenames", filenames);
+    // let fillDbStore = createStore("FileDirectoryHandlers", "FileDirHandlers");
+    // keys(fillDbStore).then((filenames) => {
+    //   setFilesName(filenames);
+    //   console.log("filenames", filenames);
+    // });
+    socket.on("connection-success", (success) => {
+      console.log(success);
     });
+
+    socket.on("offerOrAnswer", (sdp) => {
+      console.log("received sdp", sdp);
+      textref.value = JSON.stringify(sdp);
+
+      // set sdp as remote description
+      pc.current.setRemoteDescription(new RTCSessionDescription(sdp));
+    });
+
+    socket.on("candidate", (candidate) => {
+      // console.log('From Peer... ', JSON.stringify(candidate))
+      // candidates = [...candidates, candidate]
+      pc.current.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+
+    // const pc_config = null
+    // const pc_config = nullset
+
+    const pc_config = {
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" },
+      ],
+    };
+
+    // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
+    // create an instance of RTCPeerConnection
+    pc.current = new RTCPeerConnection(pc_config, [{ googIPv6: true }]);
+    console.log(" pc.current", pc.current);
+    // triggered when a new candidate is returned
+    pc.current.onicecandidate = (e) => {
+      // send the candidates to the remote peer
+      // see addCandidate below to be triggered on the remote peer
+      if (e.candidate) {
+        // console.log(JSON.stringify(e.candidate))
+        // console.log("candidate", e.candidate);
+        sendToPeer("candidate", e.candidate);
+      }
+    };
+    // triggered when there is a change in connection state
+    pc.current.oniceconnectionstatechange = (e) => {
+      console.log("state", e);
+      setTimeout(() => {
+        setConnStatus(e.currentTarget.connectionState);
+      }, 1000);
+
+      // console.log("channel", sandChannel.current);
+    };
+    pc.current.onnegotiationneeded = (e) => console.log("negotiaiton", e);
+    // triggered when a stream is added to pc, see below - pc.addStream(stream)
+    // pc.current.onaddstream = (e) => {
+    //   remoteVideoref.current.srcObject = e.stream;
+    // };
   }, []);
-  socket.on("connection-success", (success) => {
-    console.log(success);
-  });
-
-  socket.on("offerOrAnswer", (sdp) => {
-    console.log("received sdp", sdp);
-    textref.value = JSON.stringify(sdp);
-
-    // set sdp as remote description
-    pc.current.setRemoteDescription(new RTCSessionDescription(sdp));
-  });
-
-  socket.on("candidate", (candidate) => {
-    // console.log('From Peer... ', JSON.stringify(candidate))
-    // candidates = [...candidates, candidate]
-    pc.current.addIceCandidate(new RTCIceCandidate(candidate));
-  });
-
-  // const pc_config = null
-
-  const pc_config = {
-    iceServers: [
-      { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" },
-      { urls: "stun:stun2.l.google.com:19302" },
-      { urls: "stun:stun3.l.google.com:19302" },
-      { urls: "stun:stun4.l.google.com:19302" },
-    ],
-  };
-
-  // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
-  // create an instance of RTCPeerConnection
-  pc.current = new RTCPeerConnection(pc_config, [{ googIPv6: true }]);
-
-  // triggered when a new candidate is returned
-  pc.current.onicecandidate = (e) => {
-    // send the candidates to the remote peer
-    // see addCandidate below to be triggered on the remote peer
-    if (e.candidate) {
-      // console.log(JSON.stringify(e.candidate))
-      // console.log("candidate", e.candidate);
-      sendToPeer("candidate", e.candidate);
-    }
-  };
-
-  // triggered when there is a change in connection state
-  pc.current.oniceconnectionstatechange = (e) => {
-    console.log("state", e);
-    // console.log("channel", sandChannel.current);
-  };
-  pc.current.onnegotiationneeded = (e) => console.log("negotiaiton", e);
-  // triggered when a stream is added to pc, see below - pc.addStream(stream)
-  pc.current.onaddstream = (e) => {
-    remoteVideoref.current.srcObject = e.stream;
-  };
 
   // called when getUserMedia() successfully returns - see below
   // getUserMedia() returns a MediaStream object (https://developer.mozilla.org/en-US/docs/Web/API/MediaStream)
-  const success = (stream) => {
-    window.localStream = stream;
-    localVideoref.current.srcObject = stream;
-    pc.current.addStream(stream);
-  };
+  // const success = (stream) => {
+  //   window.localStream = stream;
+  //   localVideoref.current.srcObject = stream;
+  //   pc.current.addStream(stream);
+  // };
 
   // called when getUserMedia() fails - see below
-  const failure = (e) => {
-    console.log("getUserMedia Error: ", e);
-  };
+  // const failure = (e) => {
+  //   console.log("getUserMedia Error: ", e);
+  // };
 
   // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
   // see the above link for more constraint options
-  const constraints = {
-    audio: false,
-    video: true,
-  };
+  // const constraints = {
+  //   audio: false,
+  //   video: true,
+  // };
 
   // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
-  navigator.mediaDevices.getUserMedia(constraints).then(success).catch(failure);
+  // navigator.mediaDevices.getUserMedia(constraints).then(success).catch(failure);
   // }, []);
 
   let sendToPeer = (messageType, payload) => {
@@ -138,11 +144,11 @@ const App = () => {
       reliable: false,
     });
     sandChannel.current.onmessage = handleReceiveMessage;
-    sandChannel.current.onopen = handleSendChannelStatusChange;
-    sandChannel.current.onclose = handleSendChannelStatusChange;
+    sandChannel.current.onopen = handleChannelStatusChange;
+    sandChannel.current.onclose = handleChannelStatusChange;
     // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createOffer
     // initiates the creation of SDP
-    pc.current.createOffer({ offerToReceiveVideo: 1 }).then((sdp) => {
+    pc.current.createOffer({}).then((sdp) => {
       // console.log(JSON.stringify(sdp))
       console.log(JSON.stringify(sdp));
       localStorage.setItem("sdp", JSON.stringify(sdp));
@@ -153,9 +159,7 @@ const App = () => {
       sendToPeer("offerOrAnswer", sdp);
     });
   };
-  const handleSendChannelStatusChange = async (event) => {
-    console.log("send channel status: ", event);
-  };
+
   const createPath = async (path) => {
     // eslint-disable-next-line no-undef
     await CefSharp.BindObjectAsync("FileSystemClass");
@@ -179,7 +183,6 @@ const App = () => {
       setFilesName((files) => [...files, e.data]);
     }
     worker.postMessage(e.data);
-
   };
   async function verifyPermission(fileHandle, readWrite) {
     const options = {};
@@ -202,7 +205,7 @@ const App = () => {
   // creates an SDP answer to an offer received from remote peer
   let createAnswer = () => {
     console.log("Answer");
-    pc.current.createAnswer({ offerToReceiveVideo: 1 }).then((sdp) => {
+    pc.current.createAnswer({}).then((sdp) => {
       console.log(JSON.stringify(sdp));
       // set answer sdp as local description
       pc.current.setLocalDescription(sdp);
@@ -211,7 +214,7 @@ const App = () => {
       console.log("received channel", pc.current);
 
       pc.current.ondatachannel = async (e) => {
-        let receivedChannel = e.channel;
+        sandChannel.current = e.channel;
         let dbStore = createStore("Directory", "DirHanlders");
         setStore(dbStore);
         let dbDir = await get("directory", dbStore);
@@ -226,17 +229,17 @@ const App = () => {
           console.log("localDirHandler", dir);
         }
         setRecDirHanlder((dirRecHandler) => [...dirRecHandler, dbDir]);
-        receivedChannel.onmessage = handleReceiveMessage;
+        sandChannel.current.onmessage = handleReceiveMessage;
 
-        receivedChannel.onopen = handleReceivedChannelStatusChange;
-
-        sandChannel.current = receivedChannel;
+        sandChannel.current.onopen = handleChannelStatusChange;
+        sandChannel.current.onclose = handleChannelStatusChange;
       };
     });
   };
 
-  const handleReceivedChannelStatusChange = async (e) => {
-
+  const handleChannelStatusChange = async (e) => {
+    console.log("rec chnel status", sandChannel.current.readyState);
+    setChannelStatus(sandChannel.current.readyState);
   };
 
   let OfferAgain = () => {
@@ -325,27 +328,6 @@ const App = () => {
 
   return (
     <div>
-      <video
-        style={{
-          width: 240,
-          height: 240,
-          margin: 5,
-          backgroundColor: "black",
-        }}
-        ref={localVideoref}
-        autoPlay
-      ></video>
-      <video
-        style={{
-          width: 240,
-          height: 240,
-          margin: 5,
-          backgroundColor: "black",
-        }}
-        ref={remoteVideoref}
-        autoPlay
-      ></video>
-      <br />
       <button onClick={createOffer}>Offer</button>
       {/* <button onClick={OfferAgain}> Offer Again</button> */}
       <button onClick={createAnswer}>Answer</button>
@@ -375,6 +357,8 @@ const App = () => {
               </>
             ))
           : null}
+        <p>conncetoin is {connStatus}</p>
+        <p>channel is {sandChannel.current?.readyState}</p>
       </div>
     </div>
   );
