@@ -16,6 +16,7 @@ const App = () => {
   let [files, setFiles] = useState([]);
   let [dirHandler, setDirHanlder] = useState([]);
   let [dirRecHandler, setRecDirHanlder] = useState([]);
+  let [isChrome, setIsChrome] = useState(true);
   // let ENDPOINT = "https://fd99rehman.com/";
   let ENDPOINT = "localhost:8080/";
 
@@ -25,6 +26,9 @@ const App = () => {
     path: "/webrtc",
     rejectUnauthorized: false,
   });
+  // useEffect(() => {
+  //
+  // },[]);
   // let [chunkState, setChunkState] = useState(false);
   // let [buffer, setBuffer] = useState("");
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -34,6 +38,7 @@ const App = () => {
     });
 
     socket.on("offerOrAnswer", (sdp) => {
+      console.log("received sdp", sdp);
       textref.value = JSON.stringify(sdp);
 
       // set sdp as remote description
@@ -151,7 +156,10 @@ const App = () => {
   const handleSendChannelStatusChange = async (event) => {
     console.log("send channel status: ", event);
   };
-
+  const createPath = async (path) => {
+    await window.CefSharp.BindObjectAsync("FileSystemClass");
+    await window.FileSystemClass.createSha256(path);
+  };
   worker.addEventListener("message", async (event) => {
     let directoryHandle = await get("directory");
 
@@ -159,24 +167,25 @@ const App = () => {
     debugger;
     let { fileHash, filedata } = event.data;
     let sliceHash = fileHash.slice(0, 7);
+    if (navigator.userAgentData.brands.length === 1) {
+      await createPath(sliceHash);
+    }
     let fileHashArray = sliceHash.split("");
-    let permission = await verifyPermission(directoryHandle, true);
-    console.log("persmission", permission);
+
     console.log("fileHashArray", fileHashArray);
 
     for (let i = 0; i < fileHashArray.length; i++) {
       const element = fileHashArray[i];
-      if (permission) {
-        const newDirectoryHandle = await directoryHandle.getDirectoryHandle(
-          element,
-          {
-            create: true,
-          }
-        );
-        permission = await verifyPermission(directoryHandle, true);
-        directoryHandle = newDirectoryHandle;
-        console.log("new dir", newDirectoryHandle);
-      }
+
+      const newDirectoryHandle = await directoryHandle.getDirectoryHandle(
+        element,
+        {
+          create: navigator.userAgentData.brands.length === 1 ? false : true,
+        }
+      );
+
+      directoryHandle = newDirectoryHandle;
+      console.log("new dir", newDirectoryHandle);
     }
     let { name, file } = filedata;
 
@@ -399,6 +408,10 @@ const App = () => {
       setDirHanlder((dirHandler) => [...dirHandler, localDirHandler]);
     }
   };
+  const handleGetPermission = async () => {
+    let dir = await get("directory");
+    await verifyPermission(dir, "readwrite");
+  };
 
   return (
     <div>
@@ -454,6 +467,7 @@ const App = () => {
       {/* <input multiple type="file" onChange={handleOnChangeSendFile} /> */}
       <button onClick={handleDirectoryHnadler}>Select Files Path</button>
       <button onClick={handleSendFiles}>Send Files</button>
+      <button onClick={handleGetPermission}>Get Permission</button>
       <p>{files.length}</p>
       <p>{dirRecHandler.length}</p>
 
