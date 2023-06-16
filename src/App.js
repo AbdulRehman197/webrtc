@@ -16,8 +16,6 @@ const App = () => {
   // let candidates = useRef([]);
   let textref = useRef();
   let pc = useRef();
-  let [text, setText] = useState("");
-  let [messages, setMessage] = useState([]);
   let [files, setFiles] = useState([]);
   let [filesName, setFilesName] = useState([]);
   let [dirHandler, setDirHanlder] = useState([]);
@@ -119,13 +117,6 @@ const App = () => {
   const constraints = {
     audio: false,
     video: true,
-    // video: {
-    //   width: 1280,
-    //   height: 720
-    // },
-    // video: {
-    //   width: { min: 1280 },
-    // }
   };
 
   // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
@@ -187,34 +178,8 @@ const App = () => {
     if (typeof e.data === "string") {
       setFilesName((files) => [...files, e.data]);
     }
-    // let dbStore = createStore("Directory", "DirHanlders");
-    // let directoryHandle = await get("directory", dbStore);
-    // if (directoryHandle === undefined) {
-    //   let dir = await window.showDirectoryPicker({
-    //     mode: "readwrite",
-    //     startIn: "documents",
-    //   });
-    //   await set("directory", dir, dbStore);
-    // }
     worker.postMessage(e.data);
 
-    // if (typeof e.data === "string") {
-    //   // Once, all the chunks are received, combine them to form a Blob
-    //   const file = new Blob(fileChunks);
-    //   fileReceived.push(file);
-    //   console.log("file recevied", file);
-    // saveData(file, e.data);
-    //   console.log(fileReceived);
-
-    //   fileChunks = [];
-    //   // // file.download()
-    //   // URL.createObjectURL(file).download();
-    // } else {
-    //   // Keep appending various file chunks
-    //   fileChunks.push(e.data);
-    // }
-
-    // setMessage((messages) => [...messages, { yours: false, value: e.data }]);
   };
   async function verifyPermission(fileHandle, readWrite) {
     const options = {};
@@ -232,20 +197,7 @@ const App = () => {
     // The user didn't grant permission, so return false.
     return false;
   }
-  var saveData = (function () {
-    var a = document.createElement("a");
-    document.body.appendChild(a);
-    a.style = "display: none";
-    return function (blob, fileName) {
-      // var json = JSON.stringify(data),
-      //   blob = new Blob([json], { type: "octet/stream" }),
-      let url = window.URL.createObjectURL(blob);
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    };
-  })();
+
   // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createAnswer
   // creates an SDP answer to an offer received from remote peer
   let createAnswer = () => {
@@ -284,34 +236,9 @@ const App = () => {
   };
 
   const handleReceivedChannelStatusChange = async (e) => {
-    // if (e.type === "open") {
-    //   let localDirHandler = await window.showDirectoryPicker();
-    //   setRecDirHanlder((dirRecHandler) => [...dirRecHandler, localDirHandler]);
-    //   await set("directory", localDirHandler);
-    //   console.log("localDirHandler", localDirHandler);
-    // }
+
   };
-  // let setRemoteDescription = () => {
-  //   // retrieve and parse the SDP copied from the remote peer
-  //   const desc = JSON.parse(textref.value);
 
-  //   // set sdp as remote description
-  //   pc.current.setRemoteDescription(new RTCSessionDescription(desc));
-  // };
-
-  // let addCandidate = () => {
-  //   // retrieve and parse the Candidate copied from the remote peer
-  //   // const candidate = JSON.parse(textref.value)
-  //   // console.log('Adding candidate:', candidate)
-
-  //   // add the candidate to the peer connection
-  //   // pc.addIceCandidate(new RTCIceCandidate(candidate))
-
-  //   candidates.forEach((candidate) => {
-  //     // console.log(JSON.stringify(candidate));
-  //     pc.current.addIceCandidate(new RTCIceCandidate(candidate));
-  //   });
-  // };
   let OfferAgain = () => {
     let sdp = JSON.parse(localStorage.getItem("sdp"));
     // set offer sdp as local description
@@ -382,15 +309,6 @@ const App = () => {
     });
     for await (const entry of localDirHandler.values()) {
       if (entry.kind !== "directory") {
-        // setDirHanlder((dirHandler) => [
-        //   ...dirHandler,
-        //   {
-        //     id: entry,
-        //     name: entry.name,
-        //     kind: entry.kind,
-        //   },
-        // ]);
-
         let file = await entry.getFile();
         setFiles((files) => [...files, file]);
         console.log("files", file);
@@ -429,7 +347,7 @@ const App = () => {
       ></video>
       <br />
       <button onClick={createOffer}>Offer</button>
-      <button onClick={OfferAgain}> Offer Again</button>
+      {/* <button onClick={OfferAgain}> Offer Again</button> */}
       <button onClick={createAnswer}>Answer</button>
       <br />
       <textarea
@@ -438,23 +356,7 @@ const App = () => {
           textref = ref;
         }}
       />
-      {/* <div
-        style={{ width: "500px", height: "500px", border: "1px solid gray" }}
-      >
-        {messages.length
-          ? messages.map((item) => {
-              return (
-                <div>
-                  <p>{item.yours}</p>
-                  <p>{item.value}</p>
-                </div>
-              );
-            })
-          : "Null"}
-      </div>
-      <input onChange={(e) => setText(e.target.value)} value={text} />
-      <button onClick={sendMessage}>Send</button> */}
-      {/* <input multiple type="file" onChange={handleOnChangeSendFile} /> */}
+
       <button onClick={handleDirectoryHnadler}>Select Files Path</button>
       <button onClick={handleSendFiles}>Send Files</button>
       <button onClick={handleGetPermission}>Get Permission</button>
@@ -474,10 +376,6 @@ const App = () => {
             ))
           : null}
       </div>
-
-      {/* <br />
-        <button onClick={setRemoteDescription}>Set Remote Desc</button>
-        <button onClick={addCandidate}>Add Candidate</button> */}
     </div>
   );
 };
