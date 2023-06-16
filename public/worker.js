@@ -2,9 +2,6 @@
 importScripts("./indexdb.js");
 
 let fileChunks = [];
-let fileReceived = [];
-// eslint-disable-next-line no-restricted-globals, no-undef
-
 // eslint-disable-next-line no-restricted-globals
 self.addEventListener("message", async (e) => {
   if (typeof e.data === "string") {
@@ -21,15 +18,7 @@ self.addEventListener("message", async (e) => {
     self.postMessage({
       fileHash: hash,
     });
-    // fileReceived.push(file);
-    // console.log("file recevied", file);
-    // saveData(file, e.data);
-    // console.log(fileReceived);
-    // eslint-disable-next-line no-restricted-globals
-    // self.postMessage({
-    //   file: file,
-    //   filename: e.data,
-    // });
+
     console.log("message from worker");
     fileChunks = [];
     // eslint-disable-next-line no-undef
@@ -40,40 +29,29 @@ self.addEventListener("message", async (e) => {
     let directoryHandle = await get("directory", dbStore);
 
     let sliceHash = hash.slice(0, 3);
-    let fileHashArray = sliceHash.split("");
-
-    console.log("fileHashArray", fileHashArray);
-
-    setTimeout(async () => {
-      for (let i = 0; i < fileHashArray.length; i++) {
-        const element = fileHashArray[i];
-        const newDirectoryHandle = await directoryHandle.getDirectoryHandle(
-          element,
-          {
-            create: navigator.userAgentData.brands.length === 1 ? false : true,
-          }
-        );
-        directoryHandle = newDirectoryHandle;
-        console.log("new dir", newDirectoryHandle);
+    const newDirectoryHandle = await directoryHandle.getDirectoryHandle(
+      sliceHash,
+      {
+        create: true,
       }
-      // eslint-disable-next-line no-undef
-      await set(
-        filename,
-        { path: sliceHash, fileDirHandler: directoryHandle },
-        fillDbStore
-      );
+    );
+    directoryHandle = newDirectoryHandle;
+    console.log("new dir", newDirectoryHandle);
 
-      const newFileHandle = await directoryHandle.getFileHandle(
-        `${hash}_${filename}`,
-        {
-          create: true,
-        }
-      );
-      const writableStream = await newFileHandle.createWritable();
-      // write our file
-      await writableStream.write(file);
-      await writableStream.close();
-    }, 100);
+    // eslint-disable-next-line no-undef
+    await set(filename, { path: sliceHash }, fillDbStore);
+
+    const newFileHandle = await directoryHandle.getFileHandle(
+      `${hash}_${filename}`,
+      {
+        create: true,
+      }
+    );
+    const writableStream = await newFileHandle.createWritable();
+    // write our file
+    await writableStream.write(file);
+    await writableStream.close();
+
     // close the file and write the contents to disk.
     // // file.download()
     // URL.createObjectURL(file).download();
