@@ -28,8 +28,10 @@ function defaultGetStore() {
  * @param key
  * @param customStore Method to get a custom store. Use with caution (see the docs).
  */
-function get(key, customStore) {
-  return customStore("readonly", (store) => promisifyRequest(store.get(key)));
+async function get(key, customStore) {
+  return await customStore("readonly", (store) =>
+    promisifyRequest(store.get(key))
+  );
 }
 /**
  * Set a value with a key.

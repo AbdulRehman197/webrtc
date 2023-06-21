@@ -3,59 +3,79 @@ import {
   get,
   set,
   keys,
+  entries,
+  getMany,
   createStore,
 } from "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js";
-import io from "socket.io-client";
-
+import { socket } from "./socket";
+// import io from "socket.io-client";
+import Checkbox from "./checkbox";
+import sha256 from "./sha256";
 const App = () => {
   //   // https://reactjs.org/docs/refs-and-the-dom.html
 
   let sandChannel = useRef();
-  let socket = useRef(null);
+  // let socket = useRef(null);
   // let candidates = useRef([]);
   let textref = useRef();
   let pc = useRef();
   let [files, setFiles] = useState([]);
   let [filesName, setFilesName] = useState([]);
-  let [dirHandler, setDirHanlder] = useState([]);
+  let [isDirPermited, setIsDirPermited] = useState(false);
+  let [dirHanlder, setDirHandler] = useState("");
   let [dirRecHandler, setRecDirHanlder] = useState([]);
   let [isChrome, setIsChrome] = useState(true);
   let [isChecked, setIsChecked] = useState(false);
   let [store, setStore] = useState("");
-  let [connStatus, setConnStatus] = useState("Nothing");
-  let [channelStatus, setChannelStatus] = useState("Nothing");
+  let [connStatus, setConnStatus] = useState("");
+  let [channelStatus, setChannelStatus] = useState("");
+  const [checked, setChecked] = useState([]);
+  let [offerVisible, setOfferVisible] = useState(true);
+  let [answerVisible, setAnswerVisible] = useState(true);
   // let ENDPOINT = "https://fd99rehman.com/";
-  let ENDPOINT = "localhost:8080/";
-
+  // let ENDPOINT = "localhost:8080/";
   const worker = new Worker("../worker.js");
-
-  socket = io.connect(ENDPOINT, {
-    path: "/webrtc",
-    rejectUnauthorized: false,
-  });
-
+  // let socket = io.connect(ENDPOINT, {
+  //   path: "/webrtc",
+  //   rejectUnauthorized: false,
+  // });
+  // let getFielsName = async () => {
+  //   let fillDbStore = createStore("FileDirectoryHandlers", "FileDirHandlers");
+  //   let newfiles = await keys(fillDbStore);
+  //   let newfileNames = await newfiles;
+  //   return await newfileNames;
+  // };
+  // console.log("filesNames", getFielsName());
   useEffect(() => {
-    // let fillDbStore = createStore("FileDirectoryHandlers", "FileDirHandlers");
-    // keys(fillDbStore).then((filenames) => {
-    //   setFilesName(filenames);
-    //   console.log("filenames", filenames);
-    // });
+    let fillDbStore = createStore("FileDirectoryHandlers", "FileDirHandlers");
+    keys(fillDbStore).then((dbFilesName) => {
+      // console.log("entries", dbFilesName);
+      setFilesName(dbFilesName);
+    });
+    console.log("called");
+
     socket.on("connection-success", (success) => {
       console.log(success);
     });
 
     socket.on("offerOrAnswer", (sdp) => {
-      // console.log("received sdp", sdp);
-      textref.value = JSON.stringify(sdp);
+      console.log("received sdp", sdp.type);
+      // textref.value = JSON.stringify(sdp);
+
+      if (sdp.type === "offer") {
+        setAnswerVisible(true);
+        setOfferVisible(false);
+        setConnStatus("Someone is Calling....");
+      }
+
+      pc.current.setRemoteDescription(new RTCSessionDescription(sdp));
 
       // set sdp as remote description
-      pc.current.setRemoteDescription(new RTCSessionDescription(sdp));
     });
 
     socket.on("candidate", (candidate) => {
       pc.current.addIceCandidate(new RTCIceCandidate(candidate));
     });
-
     const pc_config = {
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -69,7 +89,6 @@ const App = () => {
     // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
     // create an instance of RTCPeerConnection
     pc.current = new RTCPeerConnection(pc_config, [{ googIPv6: true }]);
-    // console.log(" pc.current", pc.current);
     // triggered when a new candidate is returned
     pc.current.onicecandidate = (e) => {
       // see addCandidate below to be triggered on the remote peer
@@ -78,9 +97,44 @@ const App = () => {
       }
     };
     // triggered when there is a change in connection state
-
     pc.current.onconnectionstatechange = (e) => {
-      setConnStatus(pc.current.connectionState);
+      if (pc.current.connectionState === "connected") {
+        setConnStatus(pc.current.connectionState);
+      } else {
+        setConnStatus(pc.current.connectionState);
+        setOfferVisible(true);
+      }
+      if (
+        pc.current.connectionState === "disconnected" ||
+        pc.current.connectionState === "failed"
+      ) {
+        window.location.reload(true);
+      }
+    };
+
+    return () => {
+      socket.off("connection-success", (success) => {
+        console.log(success);
+      });
+
+      socket.off("offerOrAnswer", (sdp) => {
+        console.log("received sdp", sdp.type);
+        // textref.value = JSON.stringify(sdp);
+
+        if (sdp.type === "offer") {
+          setAnswerVisible(true);
+          setOfferVisible(false);
+          setConnStatus("Someone is Calling....");
+        }
+
+        pc.current.setRemoteDescription(new RTCSessionDescription(sdp));
+
+        // set sdp as remote description
+      });
+
+      socket.off("candidate", (candidate) => {
+        pc.current.addIceCandidate(new RTCIceCandidate(candidate));
+      });
     };
   }, []);
 
@@ -91,10 +145,14 @@ const App = () => {
     });
   };
 
+  const handleChannelStatusChange = async (e) => {
+    setChannelStatus(sandChannel.current.readyState);
+  };
+
   /* ACTION METHODS FROM THE BUTTONS ON SCREEN */
 
   let createOffer = () => {
-    // console.log("Offer");
+    console.log("Offer");
     sandChannel.current = pc.current.createDataChannel("sendChannel", {
       reliable: false,
     });
@@ -111,48 +169,8 @@ const App = () => {
       pc.current.setLocalDescription(sdp);
       sendToPeer("offerOrAnswer", sdp);
     });
+    setConnStatus("Calling....");
   };
-
-  const createPath = async (path) => {
-    // eslint-disable-next-line no-undef
-    await CefSharp.BindObjectAsync("FileSystemClass");
-    // eslint-disable-next-line no-undef
-    await FileSystemClass.createSha256(path);
-  };
-
-  worker.addEventListener("message", async (event) => {
-    if (navigator.userAgentData.brands.length === 1) {
-      let { fileHash } = event.data;
-      let sliceHash = fileHash.slice(0, 7);
-      await createPath(sliceHash);
-    }
-  });
-
-  const handelFileHash = async (element) => {
-    // setDirHanlder((dirRecHandler) => [...dirRecHandler, newDirectoryHandle]);
-  };
-  let handleReceiveMessage = async (e) => {
-    if (typeof e.data === "string") {
-      setFilesName((files) => [...files, e.data]);
-    }
-    worker.postMessage(e.data);
-  };
-  async function verifyPermission(fileHandle, readWrite) {
-    const options = {};
-    if (readWrite) {
-      options.mode = "readwrite";
-    }
-    // Check if permission was already granted. If so, return true.
-    if ((await fileHandle.queryPermission(options)) === "granted") {
-      return true;
-    }
-    // Request permission. If the user grants permission, return true.
-    if ((await fileHandle.requestPermission(options)) === "granted") {
-      return true;
-    }
-    // The user didn't grant permission, so return false.
-    return false;
-  }
 
   // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createAnswer
   // creates an SDP answer to an offer received from remote peer
@@ -165,6 +183,7 @@ const App = () => {
 
       sendToPeer("offerOrAnswer", sdp);
       // console.log("received channel", pc.current);
+      // setStatus("Connection is Established");
 
       pc.current.ondatachannel = async (e) => {
         sandChannel.current = e.channel;
@@ -190,21 +209,77 @@ const App = () => {
     });
   };
 
-  const handleChannelStatusChange = async (e) => {
-    setChannelStatus(sandChannel.current.readyState);
-  };
+  // let OfferAgain = () => {
+  //   let sdp = JSON.parse(localStorage.getItem("sdp"));
+  //   // set offer sdp as local description
+  //   pc.current.setLocalDescription(sdp);
 
-  let OfferAgain = () => {
-    let sdp = JSON.parse(localStorage.getItem("sdp"));
-    // set offer sdp as local description
-    pc.current.setLocalDescription(sdp);
-
-    sendToPeer("offerOrAnswer", sdp);
+  //   sendToPeer("offerOrAnswer", sdp);
+  // };
+  let handleReceiveMessage = async (e) => {
+    let data = e.data;
+    console.log("incoming data", data);
+    if (data.type === "filename") {
+      setFilesName((files) => [...files, data.data]);
+      worker.postMessage({
+        type: "filename",
+        data: data.data,
+      });
+    } else if (data.type === "chunk") {
+      worker.postMessage({
+        type: "chunk",
+        data: data.data,
+      });
+    }
   };
-  let handleOnChangeSendFile = (e) => {
-    setFiles((files) => [...files, ...e.target.files]);
-  };
+  worker.addEventListener("message", async (event) => {
+    console.log("coming event", event.data);
+    if (event.data.type === "readFiles") {
+      setFiles(event.data.data);
+    }
+  });
 
+  async function verifyPermission(fileHandle, readWrite) {
+    const options = {};
+    if (readWrite) {
+      options.mode = "readwrite";
+    }
+    // Check if permission was already granted. If so, return true.
+    if ((await fileHandle.queryPermission(options)) === "granted") {
+      return true;
+    }
+    // Request permission. If the user grants permission, return true.
+    if ((await fileHandle.requestPermission(options)) === "granted") {
+      return true;
+    }
+    // The user didn't grant permission, so return false.
+    return false;
+  }
+
+  const serlizedData = (dataInfo) => {
+    let { type, data } = dataInfo;
+    let finalBuffer;
+    // let typeSha = await sha256(type);
+    // console.log("sha", typeSha);
+    let typeBuffer = new TextEncoder().encode(type);
+    console.log("shabufer", data);
+
+    // console.log("typeShalength", typeSha.length);
+    if (typeof data !== "string") {
+      finalBuffer = _appendBuffer(new Uint8Array(data), typeBuffer);
+    } else {
+      let fileName = new TextEncoder().encode(data);
+      console.log("filename buffer", fileName);
+
+      finalBuffer = _appendBuffer(fileName, typeBuffer);
+    }
+    return finalBuffer;
+  };
+  var _appendBuffer = function (buffer1, buffer2) {
+    let buffer = new Uint8Array([...buffer1, ...buffer2]).buffer;
+    console.log("finalbuffer buffer", buffer);
+    return buffer;
+  };
   let handleSendFiles = async () => {
     let i = 0;
     let buffer = await files[i].arrayBuffer();
@@ -234,15 +309,27 @@ const App = () => {
         };
         return;
       }
-      const chunkSize = 256 * 1024;
+      const chunkSize = 256 * 1024 - 64;
       const chunk = buffer.slice(0, chunkSize);
       buffer = buffer.slice(chunkSize, buffer.byteLength);
       // Off goes the chunk!
       newbuffer = buffer;
-      sandChannel.current.send(chunk);
-    }
+      // console.log("chunk type", chunk);
+      let data = { type: "chunk", data: chunk };
+      let finalArrayBuffer = serlizedData(data);
+      console.log("finalArrayBuffer", finalArrayBuffer);
 
-    sandChannel.current.send(files[i].name);
+      sandChannel.current.send(finalArrayBuffer);
+      // data = JSON.stringify(data);
+      // data = new TextEncoder().encode(data);
+      // console.log("arraybuffer of data", data);
+      // data = new TextDecoder().decode(data);
+      // data = JSON.parse(data);
+      // console.log("data from array buffer", data);
+    }
+    let data = { type: "filename", data: files[i].name };
+    let finalArrayBuffer = serlizedData(data);
+    sandChannel.current.send(finalArrayBuffer);
 
     newbuffer = "";
 
@@ -258,6 +345,7 @@ const App = () => {
   };
 
   const handleDirectoryHnadler = async () => {
+    setFiles([]);
     let localDirHandler = await window.showDirectoryPicker({
       mode: "readwrite",
       startIn: "documents",
@@ -268,7 +356,6 @@ const App = () => {
         setFiles((files) => [...files, file]);
         // console.log("files", file);
       }
-      setDirHanlder((dirHandler) => [...dirHandler, localDirHandler]);
     }
   };
   const handleGetPermission = async () => {
@@ -276,13 +363,46 @@ const App = () => {
 
     let dir = await get("directory", dbStore);
     await verifyPermission(dir, "readwrite");
+    setDirHandler(dir);
+    setIsDirPermited(true);
+  };
+  // const fetchFromDb = () => {
+  //   let ItemsKeys = [];
+
+  //   console.log("keys", ItemsKeys);
+  //   return ItemsKeys;
+  // };
+
+  const handleOnChange = (e, name) => {
+    if (e.target.checked) {
+      setChecked([...checked, name]);
+      getFilsFromDb([...checked, name]);
+    } else {
+      setChecked(checked.filter((item) => item !== name));
+    }
   };
 
+  const handleCheckAllChange = (e) => {
+    if (e.target.checked) {
+      // const allCountries = filesName.map((c) => c);
+      setChecked(filesName);
+      getFilsFromDb(filesName);
+    } else {
+      setChecked([]);
+    }
+  };
+
+  const getFilsFromDb = async (filesInfo) => {
+    let dbStore = createStore("Directory", "DirHanlders");
+    let dir = await get("directory", dbStore);
+    await verifyPermission(dir, "read");
+    worker.postMessage({
+      type: "selectAll",
+      data: filesInfo,
+    });
+  };
   return (
     <div>
-      <button onClick={createOffer}>Offer</button>
-      {/* <button onClick={OfferAgain}> Offer Again</button> */}
-      <button onClick={createAnswer}>Answer</button>
       <br />
       <textarea
         style={{ width: 450, height: 40, display: "none" }}
@@ -290,28 +410,63 @@ const App = () => {
           textref = ref;
         }}
       />
+      {connStatus === "connected" &&
+      sandChannel.current?.readyState === "open" ? (
+        <div>
+          <button onClick={handleDirectoryHnadler}>Select Files Path</button>
+          <button onClick={handleSendFiles}>Send Files</button>
+          {!isDirPermited ? (
+            <button onClick={handleGetPermission}>Get Permission</button>
+          ) : null}
+        </div>
+      ) : (
+        <div>
+          {offerVisible ? (
+            <button onClick={createOffer}>Offer</button>
+          ) : (
+            <button onClick={createAnswer}>Answer</button>
+          )}
 
-      <button onClick={handleDirectoryHnadler}>Select Files Path</button>
-      <button onClick={handleSendFiles}>Send Files</button>
-      <button onClick={handleGetPermission}>Get Permission</button>
+          {/* <button onClick={OfferAgain}> Offer Again</button> */}
+        </div>
+      )}
+
       <div>
-        {filesName.length > 0
-          ? filesName.map((filename, i) => (
-              <>
-                {" "}
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  id="filename"
-                  name="filename"
-                />
-                <label for="filename"> {filename}</label>
-              </>
-            ))
-          : null}
-        <p>conncetoin is {connStatus}</p>
-        <p>channel is {sandChannel.current?.readyState}</p>
+        {filesName.length && (
+          <>
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id="selectAll"
+              htmlFor="selectall"
+              checked={checked.length === filesName.length}
+              onChange={handleCheckAllChange}
+            />
+            <label className="form-check-label" htmlFor="selectAll">
+              Select all
+            </label>
+          </>
+        )}
+        {filesName.length &&
+          filesName.map((filename, i) => (
+            <>
+              {" "}
+              <input
+                key={i}
+                type="checkbox"
+                checked={checked.includes(filename)}
+                id="filename"
+                name="filename"
+                htmlFor={i}
+                onChange={(e) => handleOnChange(e, filename)}
+              />
+              <label for="filename"> {filename}</label>
+            </>
+          ))}
       </div>
+      <p> {connStatus}</p>
+      <p>channel is {sandChannel.current?.readyState}</p>
+      <p>{checked.join(", ")}</p>
     </div>
   );
 };
