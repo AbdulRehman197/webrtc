@@ -8,7 +8,6 @@ let fillDbStore = createStore("FileDirectoryHandlers", "FileDirHandlers");
 let fileChunks = [];
 // eslint-disable-next-line no-restricted-globals
 self.addEventListener("message", async (e) => {
-  console.log("incoming event", e.data);
   if (e.data.type === "filename") {
     // console.log("filename", fileChunks);
     // Once, all the chunks are received, combine them to form a Blob
@@ -41,12 +40,9 @@ self.addEventListener("message", async (e) => {
     // eslint-disable-next-line no-undef
     await set(filename, { path: sliceHash }, fillDbStore);
 
-    const newFileHandle = await directoryHandle.getFileHandle(
-      `${sliceHash}_${filename}`,
-      {
-        create: true,
-      }
-    );
+    const newFileHandle = await directoryHandle.getFileHandle(filename, {
+      create: true,
+    });
     const writableStream = await newFileHandle.createWritable();
     // write our file
     await writableStream.write(file);
@@ -59,10 +55,11 @@ self.addEventListener("message", async (e) => {
     fileChunks.push(e.data.data);
   } else if (e.data.type === "selectAll") {
     // eslint-disable-next-line no-undef
-    let dir = await get("directory", dbStore);
+    // let dir = await get("directory", dbStore);
     let getPath = e.data.data.map(async (filename) => {
       // eslint-disable-next-line no-undef
       let value = await get(filename, fillDbStore);
+
       let path = await value;
       return {
         filename,
@@ -74,11 +71,14 @@ self.addEventListener("message", async (e) => {
     getPath = await Promise.all(getPath);
     console.log("getPath", getPath);
     let dirhandlers = getPath.map(async (getPath) => {
-      const newDirectoryHandle = await dir.getDirectoryHandle(getPath.path, {
-        create: false,
-      });
+      const newDirectoryHandle = await e.data.store.getDirectoryHandle(
+        getPath.path,
+        {
+          create: false,
+        }
+      );
       const newFileHandle = await newDirectoryHandle.getFileHandle(
-        `${getPath.path}_${getPath.filename}`,
+        getPath.filename,
         {
           create: true,
         }

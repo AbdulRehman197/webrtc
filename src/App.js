@@ -151,8 +151,9 @@ const App = () => {
 
   /* ACTION METHODS FROM THE BUTTONS ON SCREEN */
 
-  let createOffer = () => {
+  let createOffer = async () => {
     console.log("Offer");
+
     sandChannel.current = pc.current.createDataChannel("sendChannel", {
       reliable: false,
     });
@@ -174,8 +175,9 @@ const App = () => {
 
   // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createAnswer
   // creates an SDP answer to an offer received from remote peer
-  let createAnswer = () => {
+  let createAnswer = async () => {
     console.log("Answer");
+
     pc.current.createAnswer({}).then((sdp) => {
       // console.log(JSON.stringify(sdp));
       // set answer sdp as local description
@@ -187,20 +189,20 @@ const App = () => {
 
       pc.current.ondatachannel = async (e) => {
         sandChannel.current = e.channel;
-        let dbStore = createStore("Directory", "DirHanlders");
-        setStore(dbStore);
-        let dbDir = await get("directory", dbStore);
-        if (dirRecHandler.length === 0 && dbDir === undefined) {
-          let dir = await window.showDirectoryPicker({
-            mode: "readwrite",
-            startIn: "documents",
-          });
+        // let dbStore = createStore("Directory", "DirHanlders");
+        // setStore(dbStore);
+        // let dbDir = await get("directory", dbStore);
+        // if (dirRecHandler.length === 0 && dbDir === undefined) {
+        //   let dir = await window.showDirectoryPicker({
+        //     mode: "readwrite",
+        //     startIn: "documents",
+        //   });
 
-          setRecDirHanlder((dirRecHandler) => [...dirRecHandler, dir]);
-          await set("directory", dir, dbStore);
-          // console.log("localDirHandler", dir);
-        }
-        setRecDirHanlder((dirRecHandler) => [...dirRecHandler, dbDir]);
+        //   setIsDirPermited(true);
+        //   await set("directory", dir, dbStore);
+        //   // console.log("localDirHandler", dir);
+        // }
+        // setRecDirHanlder((dirRecHandler) => [...dirRecHandler, dbDir]);
         sandChannel.current.onmessage = handleReceiveMessage;
 
         sandChannel.current.onopen = handleChannelStatusChange;
@@ -218,17 +220,17 @@ const App = () => {
   // };
   let handleReceiveMessage = async (e) => {
     let data = e.data;
-    console.log("incoming data", data);
-    if (data.type === "filename") {
-      setFilesName((files) => [...files, data.data]);
+    // console.log("incoming data", data);
+    if (typeof data === "string") {
+      setFilesName((files) => [...files, data]);
       worker.postMessage({
         type: "filename",
-        data: data.data,
+        data: data,
       });
-    } else if (data.type === "chunk") {
+    } else {
       worker.postMessage({
         type: "chunk",
-        data: data.data,
+        data: data,
       });
     }
   };
@@ -262,14 +264,14 @@ const App = () => {
     // let typeSha = await sha256(type);
     // console.log("sha", typeSha);
     let typeBuffer = new TextEncoder().encode(type);
-    console.log("shabufer", data);
+    // console.log("shabufer", data);
 
     // console.log("typeShalength", typeSha.length);
     if (typeof data !== "string") {
       finalBuffer = _appendBuffer(new Uint8Array(data), typeBuffer);
     } else {
       let fileName = new TextEncoder().encode(data);
-      console.log("filename buffer", fileName);
+      // console.log("filename buffer", fileName);
 
       finalBuffer = _appendBuffer(fileName, typeBuffer);
     }
@@ -277,11 +279,12 @@ const App = () => {
   };
   var _appendBuffer = function (buffer1, buffer2) {
     let buffer = new Uint8Array([...buffer1, ...buffer2]).buffer;
-    console.log("finalbuffer buffer", buffer);
+    // console.log("finalbuffer buffer", buffer);
     return buffer;
   };
   let handleSendFiles = async () => {
     let i = 0;
+    // console.log("fiels", files);
     let buffer = await files[i].arrayBuffer();
     handleSendFile(i, buffer);
     buffer = "";
@@ -309,17 +312,17 @@ const App = () => {
         };
         return;
       }
-      const chunkSize = 256 * 1024 - 64;
+      const chunkSize = 256 * 1024;
       const chunk = buffer.slice(0, chunkSize);
       buffer = buffer.slice(chunkSize, buffer.byteLength);
       // Off goes the chunk!
       newbuffer = buffer;
       // console.log("chunk type", chunk);
-      let data = { type: "chunk", data: chunk };
-      let finalArrayBuffer = serlizedData(data);
-      console.log("finalArrayBuffer", finalArrayBuffer);
+      // let data = { type: "chunk", data: chunk };
+      // let finalArrayBuffer = serlizedData(data);
+      // console.log("finalArrayBuffer", finalArrayBuffer);
 
-      sandChannel.current.send(finalArrayBuffer);
+      sandChannel.current.send(chunk);
       // data = JSON.stringify(data);
       // data = new TextEncoder().encode(data);
       // console.log("arraybuffer of data", data);
@@ -327,9 +330,9 @@ const App = () => {
       // data = JSON.parse(data);
       // console.log("data from array buffer", data);
     }
-    let data = { type: "filename", data: files[i].name };
-    let finalArrayBuffer = serlizedData(data);
-    sandChannel.current.send(finalArrayBuffer);
+    // let data = { type: "filename", data: files[i].name };
+    // let finalArrayBuffer = serlizedData(data);
+    sandChannel.current.send(files[i].name);
 
     newbuffer = "";
 
@@ -346,6 +349,7 @@ const App = () => {
 
   const handleDirectoryHnadler = async () => {
     setFiles([]);
+    let dbStore = createStore("Directory", "DirHanlders");
     let localDirHandler = await window.showDirectoryPicker({
       mode: "readwrite",
       startIn: "documents",
@@ -357,13 +361,27 @@ const App = () => {
         // console.log("files", file);
       }
     }
+    setIsDirPermited(true);
+    await set("directory", localDirHandler, dbStore);
   };
   const handleGetPermission = async () => {
     let dbStore = createStore("Directory", "DirHanlders");
 
     let dir = await get("directory", dbStore);
+    if (dir === undefined) {
+      let newdir = await window.showDirectoryPicker({
+        mode: "readwrite",
+        startIn: "documents",
+      });
+
+      // setRecDirHanlder((dirRecHandler) => [...dirRecHandler, newdir]);
+      setStore(newdir);
+      await set("directory", newdir, dbStore);
+    }
+    setStore(dir);
     await verifyPermission(dir, "readwrite");
-    setDirHandler(dir);
+
+    // setDirHandler(dir);
     setIsDirPermited(true);
   };
   // const fetchFromDb = () => {
@@ -393,12 +411,15 @@ const App = () => {
   };
 
   const getFilsFromDb = async (filesInfo) => {
-    let dbStore = createStore("Directory", "DirHanlders");
-    let dir = await get("directory", dbStore);
-    await verifyPermission(dir, "read");
+    // let dbStore = createStore("Directory", "DirHanlders");
+    // let dir = await get("directory", dbStore);
+    await verifyPermission(store, "readwrite");
+    // console.log("filesInfo", filesInfo);
+
     worker.postMessage({
       type: "selectAll",
       data: filesInfo,
+      store: store,
     });
   };
   return (
@@ -415,55 +436,68 @@ const App = () => {
         <div>
           <button onClick={handleDirectoryHnadler}>Select Files Path</button>
           <button onClick={handleSendFiles}>Send Files</button>
-          {!isDirPermited ? (
-            <button onClick={handleGetPermission}>Get Permission</button>
-          ) : null}
+
+          <div>
+            {filesName.length > 0 ? (
+              <>
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="selectAll"
+                  htmlFor="selectall"
+                  checked={checked.length === filesName.length}
+                  onChange={handleCheckAllChange}
+                />
+                <label className="form-check-label" htmlFor="selectAll">
+                  Select all
+                </label>
+              </>
+            ) : null}
+            {filesName.length > 0
+              ? filesName
+                  .filter((item, pos) => filesName.indexOf(item) === pos)
+                  .map((filename, i) => (
+                    <div key={i}>
+                      {" "}
+                      <input
+                        key={i}
+                        type="checkbox"
+                        checked={checked.includes(filename)}
+                        id="filename"
+                        name="filename"
+                        onChange={(e) => handleOnChange(e, filename)}
+                      />
+                      <label htmlFor="filename"> {filename}</label>
+                    </div>
+                  ))
+              : null}
+          </div>
         </div>
       ) : (
         <div>
           {offerVisible ? (
-            <button onClick={createOffer}>Offer</button>
+            <button
+              disabled={isDirPermited ? false : true}
+              onClick={createOffer}
+            >
+              Offer
+            </button>
           ) : (
-            <button onClick={createAnswer}>Answer</button>
+            <button
+              disabled={isDirPermited ? false : true}
+              onClick={createAnswer}
+            >
+              Answer
+            </button>
           )}
+          {!isDirPermited ? (
+            <button onClick={handleGetPermission}>Get Permission</button>
+          ) : null}
 
           {/* <button onClick={OfferAgain}> Offer Again</button> */}
         </div>
       )}
 
-      <div>
-        {filesName.length && (
-          <>
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="selectAll"
-              htmlFor="selectall"
-              checked={checked.length === filesName.length}
-              onChange={handleCheckAllChange}
-            />
-            <label className="form-check-label" htmlFor="selectAll">
-              Select all
-            </label>
-          </>
-        )}
-        {filesName.length &&
-          filesName.map((filename, i) => (
-            <>
-              {" "}
-              <input
-                key={i}
-                type="checkbox"
-                checked={checked.includes(filename)}
-                id="filename"
-                name="filename"
-                htmlFor={i}
-                onChange={(e) => handleOnChange(e, filename)}
-              />
-              <label for="filename"> {filename}</label>
-            </>
-          ))}
-      </div>
       <p> {connStatus}</p>
       <p>channel is {sandChannel.current?.readyState}</p>
       <p>{checked.join(", ")}</p>
