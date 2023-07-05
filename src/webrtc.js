@@ -40,6 +40,14 @@ const Webrtc = (props) => {
   // };
   // console.log("filesNames", getFielsName());
   useEffect(() => {
+    if (files.length > 0) {
+      setTimeout(() => {
+        handleSendFiles();
+      }, 100);
+      console.log("callad useffect..");
+    }
+  }, [files]);
+  useEffect(() => {
     channel.current = props.channel;
     channel.current.onmessage = (e) => {
       switch (e.data.type) {
@@ -57,14 +65,9 @@ const Webrtc = (props) => {
           createAnswer();
           break;
         case "getFilsFromDb":
-          debugger;
           getFilsFromDb(e.data.data);
           break;
-        case "sendFiles":
-          setTimeout(() => {
-            handleSendFiles();
-          }, 1000);
-          break;
+
         default:
           break;
       }
@@ -272,7 +275,7 @@ const Webrtc = (props) => {
     if (event.data.type === "readFiles") {
       setFiles(event.data.data);
       // setTimeout(() => {
-        handleSendFiles(event.data.data);
+      // handleSendFiles();
       // }, 5000);
     }
   });
@@ -294,21 +297,20 @@ const Webrtc = (props) => {
     return false;
   }
 
-  let handleSendFiles = async (files) => {
+  let handleSendFiles = async () => {
     let i = 0;
-
     console.log("fiels", files);
     let buffer = await files[i].arrayBuffer();
-    handleSendFile(i, buffer, files);
+    handleSendFile(i, buffer);
     buffer = "";
   };
   let newbuffer = "";
   let n = 0;
-  const handleSendFile = async (i, buffer, files) => {
+  const handleSendFile = async (i, buffer) => {
     // newbuffer = buffer
     if (buffer === undefined) {
       buffer = newbuffer;
-      // i = n
+      // i = n;
       i = n;
     }
     // console.log("buffer", buffer);
@@ -321,7 +323,7 @@ const Webrtc = (props) => {
         sandChannel.current.onbufferedamountlow = () => {
           console.log("fired");
           sandChannel.current.onbufferedamountlow = null;
-          handleSendFile(i, buffer, files);
+          handleSendFile(i);
         };
         return;
       }
@@ -359,7 +361,6 @@ const Webrtc = (props) => {
       handleSendFile(i, buffer);
     }
   };
-
   const handleDirectoryHnadler = async () => {
     setFiles([]);
     let dbStore = createStore("Directory", "DirHanlders");
@@ -424,7 +425,6 @@ const Webrtc = (props) => {
   };
 
   const getFilsFromDb = async (filesInfo) => {
-    debugger;
     // let dbStore = createStore("Directory", "DirHanlders");
     // let dir = await get("directory", dbStore);
     // await verifyPermission(store, "readwrite");
@@ -449,8 +449,8 @@ const Webrtc = (props) => {
       {connStatus === "connected" &&
       sandChannel.current?.readyState === "open" ? (
         <div>
-          <button onClick={handleDirectoryHnadler}>Select Files Path</button>
-          <button onClick={handleSendFiles}>Send Files</button>
+          {/* <button onClick={handleDirectoryHnadler}>Select Files Path</button> */}
+          {/* <button onClick={handleSendFiles}>Send Files</button> */}
 
           <div>
             {filesName.length > 0 ? (
