@@ -7,6 +7,7 @@ import {
 } from "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js";
 import { socket } from "./socket";
 // import io from "socket.io-client";
+
 const Webrtc = (props) => {
   //   // https://reactjs.org/docs/refs-and-the-dom.html
   console.log("props webrtc page", props);
@@ -28,6 +29,7 @@ const Webrtc = (props) => {
   // let ENDPOINT = "https://fd99rehman.com/";
   // let ENDPOINT = "localhost:8080/";
   const worker = new Worker("../worker.js");
+
   // let socket = io.connect(ENDPOINT, {
   //   path: "/webrtc",
   //   rejectUnauthorized: false,
@@ -208,6 +210,7 @@ const Webrtc = (props) => {
       reliable: false,
     });
     sandChannel.current.onmessage = handleReceiveMessage;
+
     sandChannel.current.onopen = handleChannelStatusChange;
     sandChannel.current.onclose = handleChannelStatusChange;
     // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createOffer
@@ -259,6 +262,10 @@ const Webrtc = (props) => {
     // console.log("incoming data", data);
     if (typeof data === "string") {
       setFilesName((files) => [...files, data]);
+      sendMessage({
+        type: "saveFileName",
+        data: data,
+      });
       worker.postMessage({
         type: "filename",
         data: data,
@@ -509,7 +516,7 @@ const Webrtc = (props) => {
             <button onClick={handleGetPermission}>Get Permission</button>
           ) : null} */}
 
-          {/* <button onClick={OfferAgain}> Offer Again</button> */}
+          {/* <button> Offer Again</button> */}
         </div>
       )}
 

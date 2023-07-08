@@ -47,6 +47,9 @@ const Home = (props) => {
         case "reload":
           window.location.reload(true);
           break;
+        case "saveFileName":
+          setFilesName((files) => [...files, e.data.data]);
+          break;
         default:
           break;
       }
