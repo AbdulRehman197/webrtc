@@ -11,9 +11,23 @@ import { socket } from "./socket";
 // import io from "socket.io-client";
 import Checkbox from "./checkbox";
 import sha256 from "./sha256";
+
+
+const wb = new Worker(
+  new URL("./worker.js", import.meta.url), {
+    type: "module"
+  }
+)
+
 const App = () => {
   //   // https://reactjs.org/docs/refs-and-the-dom.html
 
+  useEffect(() => {
+    wb.postMessage({
+      data: "some data"
+    })
+  
+  }, [])
   let sandChannel = useRef();
   // let socket = useRef(null);
   // let candidates = useRef([]);
