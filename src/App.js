@@ -12,22 +12,13 @@ import { socket } from "./socket";
 import Checkbox from "./checkbox";
 import sha256 from "./sha256";
 
-
-const wb = new Worker(
-  new URL("./worker.js", import.meta.url), {
-    type: "module"
-  }
-)
+const worker = new Worker(new URL("./worker.js", import.meta.url), {
+  type: "module",
+});
 
 const App = () => {
   //   // https://reactjs.org/docs/refs-and-the-dom.html
 
-  useEffect(() => {
-    wb.postMessage({
-      data: "some data"
-    })
-  
-  }, [])
   let sandChannel = useRef();
   // let socket = useRef(null);
   // let candidates = useRef([]);
@@ -48,7 +39,7 @@ const App = () => {
   let [answerVisible, setAnswerVisible] = useState(true);
   // let ENDPOINT = "https://fd99rehman.com/";
   // let ENDPOINT = "localhost:8080/";
-  const worker = new Worker("../worker.js");
+  // const worker = new Worker("../worker.js");
   // let socket = io.connect(ENDPOINT, {
   //   path: "/webrtc",
   //   rejectUnauthorized: false,
@@ -236,7 +227,9 @@ const App = () => {
     let data = e.data;
     // console.log("incoming data", data);
     if (typeof data === "string") {
+      console.log("end of file");
       setFilesName((files) => [...files, data]);
+      console.log("file name set", data);
       worker.postMessage({
         type: "filename",
         data: data,

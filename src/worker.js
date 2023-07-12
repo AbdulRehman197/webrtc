@@ -8,18 +8,23 @@ let dbStore = createStore("Directory", "DirHanlders");
 let fillDbStore = createStore("FileDirectoryHandlers", "FileDirHandlers");
 
 let fileChunks = [];
+
 // eslint-disable-next-line no-restricted-globals
 self.onmessage = async (e) => {
-  console.log("e", e);
+  // console.log("e", e.data.type)
   if (e.data.type === "filename") {
+    console.log("filename", e.data.type);
     // console.log("filename", fileChunks);
     // Once, all the chunks are received, combine them to form a Blob
+    console.log("1");
+
     let file = new Blob(fileChunks);
-    let UintFile = new Uint8Array(await file.arrayBuffer());
+
+    // let UintFile = new Uint8Array(await file.arrayBuffer());
     // console.log("file unit", UintFile);
-    let hash = await sha256(UintFile);
-    // console.log("hashworker", hash);
     let filename = e.data.data;
+    let hash = await sha256(filename);
+    // console.log("hashworker", hash);
     // eslint-disable-next-line no-restricted-globals
     // self.postMessage({
     //   fileHash: hash,
@@ -50,7 +55,9 @@ self.onmessage = async (e) => {
     // // file.download()
     // URL.createObjectURL(file).download();
   } else if (e.data.type === "chunk") {
+    console.log("chunk");
     fileChunks.push(e.data.data);
+  
   } else if (e.data.type === "selectAll") {
     // eslint-disable-next-line no-undef
     // let dir = await get("directory", dbStore);
@@ -100,4 +107,34 @@ self.onmessage = async (e) => {
       .join("");
     return hashHex;
   }
+};
+
+export const sliceFileAndConvertChunksToSha256 = async (fileBlob) => {
+  let sha256 = "";
+
+  let chunks = [];
+  const chunkSize = 100000000;
+  const chunksAmount = Math.ceil(fileBlob.size / chunkSize);
+
+  for (let i = 0; i < chunksAmount; i += 1) {
+    const start = chunkSize * i;
+    const end = chunkSize * (i + 1);
+
+    const chunk = fileBlob.slice(start, end, fileBlob.type);
+    const hash = await convertBlobToSha256(chunk);
+    sha256 += hash;
+    // chunks.push(chunk)
+  }
+
+  return sha256;
+  // return chunks
+};
+
+export const convertBlobToSha256 = async (blob) => {
+  const buffer = await blob.arrayBuffer();
+  const hash = await crypto.subtle.digest("SHA-256", buffer);
+  const hex = Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return hex;
 };
