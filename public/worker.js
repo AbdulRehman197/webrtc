@@ -12,12 +12,12 @@ self.addEventListener("message", async (e) => {
     // console.log("filename", fileChunks);
     // Once, all the chunks are received, combine them to form a Blob
     let file = new Blob(fileChunks);
-    let UintFile = new Uint8Array(await file.arrayBuffer());
+    // let UintFile = new Uint8Array(await file.arrayBuffer());
     // console.log("file unit", UintFile);
 
-    let hash = await sha256(UintFile);
-    // console.log("hashworker", hash);
     let filename = e.data.data;
+    let hash = await sha256(filename);
+    // console.log("hashworker", hash);
     // eslint-disable-next-line no-restricted-globals
     // self.postMessage({
     //   fileHash: hash,
