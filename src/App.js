@@ -79,6 +79,7 @@ const App = () => {
     });
 
     socket.on("candidate", (candidate) => {
+      console.log("recevied candidate",candidate)
       pc.current.addIceCandidate(new RTCIceCandidate(candidate));
     });
     const pc_config = {
@@ -95,9 +96,10 @@ const App = () => {
     // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
     // create an instance of RTCPeerConnection
     pc.current = new RTCPeerConnection(pc_config, [{ googIPv6: true }]);
-    console.log("peerconn", pc)
+    // console.log("peerconn", pc)
     // triggered when a new candidate is returned
     pc.current.onicecandidate = (e) => {
+      console.log("candidate", e)
       // see addCandidate below to be triggered on the remote peer
       if (e.candidate) {
         sendToPeer("candidate", e.candidate);
