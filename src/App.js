@@ -255,9 +255,9 @@ const App = () => {
       options.mode = "readwrite";
     }
     // Check if permission was already granted. If so, return true.
-    // if ((await fileHandle.queryPermission(options)) === "granted") {
-    //   return true;
-    // }
+    if ((await fileHandle.queryPermission(options)) === "granted") {
+      return true;
+    }
     // Request permission. If the user grants permission, return true.
     if ((await fileHandle.requestPermission(options)) === "granted") {
       return true;
@@ -386,11 +386,14 @@ const App = () => {
       setStore(newdir);
       await set("directory", newdir, dbStore);
     }
-    setStore(dir);
-    await verifyPermission(dir, "readwrite");
+else{
+  setStore(dir);
+  debugger
+  await verifyPermission(dir, "readwrite");
 
-    // setDirHandler(dir);
-    setIsDirPermited(true);
+  // setDirHandler(dir);
+  setIsDirPermited(true);
+}
   };
   // const fetchFromDb = () => {
   //   let ItemsKeys = [];
