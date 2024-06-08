@@ -1,7 +1,7 @@
 {
   "name": "webrtc",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "dependencies": {
     "dexie": "^3.2.4",
     "react": "^18.2.0",

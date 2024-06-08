@@ -6,7 +6,7 @@ import {
   entries,
   getMany,
   createStore,
-} from "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js";
+} from "./indexdb.js";
 import { socket } from "./socket";
 // import io from "socket.io-client";
 import Checkbox from "./checkbox";
