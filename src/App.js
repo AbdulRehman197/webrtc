@@ -249,7 +249,7 @@ const App = () => {
     }
   });
 
-  async function verifyPermission(fileHandle, readWrite) {
+   const verifyPermission = async (fileHandle, readWrite) =>  {
     const options = {};
     if (readWrite) {
       options.mode = "readwrite";
