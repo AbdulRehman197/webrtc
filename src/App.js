@@ -99,7 +99,7 @@ const App = () => {
     // console.log("peerconn", pc)
     // triggered when a new candidate is returned
     pc.current.onicecandidate = (e) => {
-      console.log("candidate", e)
+      console.log("candidate", e.candidate)
       // see addCandidate below to be triggered on the remote peer
       if (e.candidate) {
         sendToPeer("candidate", e.candidate);
