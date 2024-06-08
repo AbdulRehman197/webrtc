@@ -95,6 +95,7 @@ const App = () => {
     // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
     // create an instance of RTCPeerConnection
     pc.current = new RTCPeerConnection(pc_config, [{ googIPv6: true }]);
+    console.log("peerconn", pc)
     // triggered when a new candidate is returned
     pc.current.onicecandidate = (e) => {
       // see addCandidate below to be triggered on the remote peer
@@ -132,7 +133,7 @@ const App = () => {
           setOfferVisible(false);
           setConnStatus("Someone is Calling....");
         }
-
+        console.log("sdp",sdp)
         pc.current.setRemoteDescription(new RTCSessionDescription(sdp));
 
         // set sdp as remote description
