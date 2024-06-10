@@ -85,8 +85,8 @@ const App = () => {
     const pc_config = {
       iceServers: [
       {urls: "turn:100.25.188.111:3478",
-        username: " ",
-        password: " "
+        username: "demo",
+        password: "demo"
       }
         // { urls: "stun:stun.l.google.com:19302" },
         // { urls: "stun:stun1.l.google.com:19302" },
