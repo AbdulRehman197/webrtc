@@ -86,7 +86,7 @@ const App = () => {
       iceServers: [
       {urls: 'turn:100.25.188.111:3478',
         username: 'demo',
-        password: 'demo'
+        credential: 'demo'
       }
         // { urls: "stun:stun.l.google.com:19302" },
         // { urls: "stun:stun1.l.google.com:19302" },
